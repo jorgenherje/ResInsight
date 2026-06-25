@@ -84,10 +84,13 @@ void RiaSumoConnector::requestCasesForField( const QString& fieldName )
 {
     m_cases.clear();
 
+    requestTokenBlocking();
+
     QNetworkRequest m_networkRequest;
     QString url = QString( "http://localhost:8000/cases?asset_name=%1" ).arg( fieldName );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -117,9 +120,12 @@ void RiaSumoConnector::requestCasesForFieldBlocking( const QString& fieldName )
 //--------------------------------------------------------------------------------------------------
 void RiaSumoConnector::requestAssets()
 {
+    requestTokenBlocking();
+
     QNetworkRequest m_networkRequest;
     m_networkRequest.setUrl( QUrl( "http://localhost:8000/assets" ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -149,10 +155,14 @@ void RiaSumoConnector::requestAssetsBlocking()
 //--------------------------------------------------------------------------------------------------
 void RiaSumoConnector::requestEnsembleByCasesId( const SumoCaseId& caseId )
 {
+
+    requestTokenBlocking();
+    
     QNetworkRequest m_networkRequest;
     QString url = QString( "http://localhost:8000/cases/%1/ensembles" ).arg( caseId.get() );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -214,10 +224,13 @@ void RiaSumoConnector::requestEnsembleByCasesIdBlocking( const SumoCaseId& caseI
 //--------------------------------------------------------------------------------------------------
 void RiaSumoConnector::requestVectorNamesForEnsemble( const SumoCaseId& caseId, const QString& ensembleName )
 {
+    requestTokenBlocking();    
+
     QNetworkRequest m_networkRequest;
     QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/vector_list" ).arg( caseId.get() ).arg( ensembleName );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );   
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -248,10 +261,13 @@ void RiaSumoConnector::requestRealizationIdsForEnsemble( const SumoCaseId& caseI
 {
     m_realizationIds.clear();
 
+    requestTokenBlocking();    
+
     QNetworkRequest m_networkRequest;
     QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/realizations" ).arg( caseId.get() ).arg( ensembleName );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -282,14 +298,15 @@ void RiaSumoConnector::requestGridInfoForEnsemble( const SumoCaseId& caseId, con
 {
     m_gridInfos.clear();
 
-    QNetworkRequest m_networkRequest;
+    requestTokenBlocking();
 
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
-
+    QNetworkRequest m_networkRequest;
     QString url =
         QString( "http://localhost:8000/cases/%1/ensembles/%2/grid_info_list" ).arg( caseId.get() ).arg( encodedEnsembleName );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -324,6 +341,8 @@ void RiaSumoConnector::requestGridInfoForEnsembleBlocking( const SumoCaseId& cas
 //--------------------------------------------------------------------------------------------------
 void RiaSumoConnector::requestGridBlobIdForEnsemble( const SumoCaseId& caseId, const QString& ensembleName, const QString& gridName, int realization )
 {
+    requestTokenBlocking();
+
     QNetworkRequest m_networkRequest;
 
     // Properly URL-encode the path components
@@ -336,7 +355,8 @@ void RiaSumoConnector::requestGridBlobIdForEnsemble( const SumoCaseId& caseId, c
                       .arg( encodedGridName )
                       .arg( realization );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -417,6 +437,8 @@ void RiaSumoConnector::requestGridPropertyInfoForEnsemble( const SumoCaseId& cas
 {
     m_gridPropertyInfos.clear();
 
+    requestTokenBlocking();
+
     QNetworkRequest m_networkRequest;
 
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
@@ -428,7 +450,8 @@ void RiaSumoConnector::requestGridPropertyInfoForEnsemble( const SumoCaseId& cas
                       .arg( encodedGridName )
                       .arg( realization );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -472,6 +495,8 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
                                                              const QString&    propertyName,
                                                              const QString&    isoDateOrInterval )
 {
+    requestTokenBlocking();
+
     QNetworkRequest m_networkRequest;
 
     // Properly URL-encode the path components
@@ -493,7 +518,8 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
     }
 
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -623,6 +649,8 @@ void RiaSumoConnector::requestParametersBlobIdForEnsembleBlocking( const SumoCas
 //--------------------------------------------------------------------------------------------------
 void RiaSumoConnector::requestParametersBlobIdForEnsemble( const SumoCaseId& caseId, const QString& ensembleName )
 {
+    requestTokenBlocking();
+
     QNetworkRequest m_networkRequest;
 
     // Properly URL-encode the path components
@@ -631,7 +659,8 @@ void RiaSumoConnector::requestParametersBlobIdForEnsemble( const SumoCaseId& cas
     QString url =
         QString( "http://localhost:8000/cases/%1/ensembles/%2/parameters/blob_url" ).arg( caseId.get() ).arg( encodedEnsembleName );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
@@ -650,6 +679,8 @@ void RiaSumoConnector::requestParametersBlobIdForEnsemble( const SumoCaseId& cas
 //--------------------------------------------------------------------------------------------------
 void RiaSumoConnector::requestBlobIdForEnsemble( const SumoCaseId& caseId, const QString& ensembleName, const QString& vectorName )
 {
+    requestTokenBlocking();
+
     QNetworkRequest m_networkRequest;
 
     // Properly URL-encode the path components
@@ -661,7 +692,8 @@ void RiaSumoConnector::requestBlobIdForEnsemble( const SumoCaseId& caseId, const
                       .arg( encodedEnsembleName )
                       .arg( encodedVectorName );
     m_networkRequest.setUrl( QUrl( url ) );
-    m_networkRequest.setHeader( QNetworkRequest::ContentTypeHeader, RiaCloudDefines::contentTypeJson() );
+    
+    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
