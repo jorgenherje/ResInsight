@@ -21,8 +21,6 @@
 #include "RiaApplication.h"
 #include "RiaLogging.h"
 
-#include "RiaCloudApiSourceDirectory.h"
-
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -41,16 +39,16 @@ namespace
 {
 // Grace period after starting the process before the first health check, to allow for the
 // initial uvicorn boot and module imports.
-constexpr int startupGraceMillis = 30 * 1000;
+constexpr int startupGraceMs = 10 * 1000;
 
 // Poll the /alive endpoint at this interval.
-constexpr int healthCheckIntervalMillis = 10 * 1000;
+constexpr int healthCheckIntervalMs = 10 * 1000;
 
 // Restart the service after this many consecutive failed health checks.
 constexpr int maxConsecutiveFailures = 2;
 
 // Per-request timeout for the health check, kept well below the poll interval.
-constexpr int healthCheckTimeoutMillis = 5 * 1000;
+constexpr int healthCheckTimeoutMs = 5 * 1000;
 
 // Range of ports scanned when looking for a free port to bind the service to.
 constexpr int firstPortNumber = 8000;
@@ -67,12 +65,12 @@ RiaCloudApiService::RiaCloudApiService( QObject* parent )
     , m_port( -1 )
     , m_consecutiveFailures( 0 )
 {
-    m_healthTimer.setInterval( healthCheckIntervalMillis );
+    m_healthTimer.setInterval( healthCheckIntervalMs );
     connect( &m_healthTimer, &QTimer::timeout, this, &RiaCloudApiService::onHealthCheck );
 
     // After the startup grace period has elapsed, begin periodic health checks.
     m_startupTimer.setSingleShot( true );
-    m_startupTimer.setInterval( startupGraceMillis );
+    m_startupTimer.setInterval( startupGraceMs );
     connect( &m_startupTimer, &QTimer::timeout, this, [this]() { m_healthTimer.start(); } );
 }
 
@@ -227,7 +225,7 @@ void RiaCloudApiService::onHealthCheck()
     }
 
     QNetworkRequest request( QUrl( QString( "http://127.0.0.1:%1/alive" ).arg( m_port ) ) );
-    request.setTransferTimeout( healthCheckTimeoutMillis );
+    request.setTransferTimeout( healthCheckTimeoutMs );
 
     QNetworkReply* reply = m_networkAccessManager->get( request );
     connect( reply,
@@ -293,12 +291,7 @@ QString RiaCloudApiService::serviceWorkingDirectory()
     }
 
     // Locations relative to the executable, used for an installed ResInsight.
-    candidates << appDir + "/Python/rips/PythonExamples";
-    candidates << appDir + "/../Python/rips/PythonExamples";
-    candidates << appDir + "/../share/Python/rips/PythonExamples";
-
-    // Source-tree location baked in at configure time, used for development builds.
-    candidates << RI_CLOUD_API_SOURCE_DIR;
+    candidates << appDir + "/CloudServiceApi/";
 
     for ( const QString& candidate : candidates )
     {
