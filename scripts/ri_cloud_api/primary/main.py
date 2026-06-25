@@ -1,5 +1,18 @@
 """ResInsight Cloud API — FastAPI application.
 
+Lifecycle is managed by ResInsight (RiaCloudApiService): the service is started when Sumo
+authentication succeeds, bound to an auto-selected free port, health-checked on /alive,
+restarted if unresponsive, and killed when ResInsight closes.
+
+Deployment status:
+    Target state — distributed and installed as a regular pip package, importable directly
+    from the environment's site-packages.
+    Current state (interim) — runs from the source tree in a virtual environment; ResInsight
+    injects each ri_cloud_api/libs/<lib>/src folder onto PYTHONPATH at launch time. This is
+    temporary and should be removed once the package is published/installed.
+
+See README.md (next to this package) for details.
+
 Setup:
     pip install poetry
     python -m venv .venv
@@ -33,6 +46,12 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="ResInsight Cloud API")
 
 add_exception_handlers(app)
+
+
+@app.get("/alive")
+def alive() -> dict[str, str]:
+    """Health-check endpoint polled by ResInsight for service life cycle management."""
+    return {"status": "alive"}
 
 app.include_router(explore_router)
 app.include_router(timeseries_router)
