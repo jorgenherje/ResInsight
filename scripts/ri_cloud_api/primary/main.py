@@ -28,11 +28,14 @@ Docs:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from .utils.exception_handlers import add_exception_handlers
+from .utils.idle_watchdog import IdleTracker, install_idle_middleware, monitor_idle
 from .routers.health.router import router as health_router
 from .routers.explore.router import router as explore_router
 from .routers.polygons.router import router as polygons_router
@@ -44,7 +47,22 @@ logger = logging.getLogger("ri_cloud_api")
 logging.basicConfig(level=logging.INFO)
 
 
-app = FastAPI(title="ResInsight Cloud API")
+idle_tracker = IdleTracker()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Self-terminate if ResInsight stops polling /alive (e.g. it crashed).
+    task = asyncio.create_task(monitor_idle(idle_tracker))
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(title="ResInsight Cloud API", lifespan=lifespan)
+
+install_idle_middleware(app, idle_tracker)
 
 add_exception_handlers(app)
 
