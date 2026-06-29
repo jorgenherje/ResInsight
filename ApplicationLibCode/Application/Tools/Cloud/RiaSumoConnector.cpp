@@ -349,7 +349,7 @@ void RiaSumoConnector::requestGridBlobIdForEnsemble( const SumoCaseId& caseId, c
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
     QString encodedGridName     = QUrl::toPercentEncoding( gridName );
 
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/grids/%3/realizations/%4/blob_url" )
+    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/grids/%3/realizations/%4/blob_id" )
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedGridName )
@@ -366,11 +366,11 @@ void RiaSumoConnector::requestGridBlobIdForEnsemble( const SumoCaseId& caseId, c
              {
                  if ( reply->error() == QNetworkReply::NoError )
                  {
-                     parseBlobUrl( reply, caseId, ensembleName, gridName, false );
+                     parseBlobId( reply, caseId, ensembleName, gridName, false );
                  }
                  else
                  {
-                     RiaLogging::error( std::format( "Request grid blob URL failed: '{}'", reply->errorString().toStdString() ) );
+                     RiaLogging::error( std::format( "Request grid blob ID failed: '{}'", reply->errorString().toStdString() ) );
                      emit blobIdFinished();
                  }
              } );
@@ -398,12 +398,10 @@ QByteArray
 {
     requestGridBlobIdForEnsembleBlocking( caseId, ensembleName, gridName, realization );
 
-    if ( m_blobUrl.empty() ) return {};
+    if ( m_blobId.empty() ) return {};
 
-    // The REST API returns the complete blob URL, extract the blob id (last path segment).
-    auto blobUrl  = m_blobUrl.back();
-    auto urlParts = blobUrl.split( '/' );
-    auto blobId   = urlParts.last();
+    // The REST API returns the blob Id
+    auto blobId   = m_blobId.back();
 
     QEventLoop eventLoop;
     QTimer     timer;
@@ -504,7 +502,7 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
     QString encodedGridName     = QUrl::toPercentEncoding( gridName );
     QString encodedPropertyName = QUrl::toPercentEncoding( propertyName );
 
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/grids/%3/realizations/%4/properties/%5/blob_url" )
+    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/grids/%3/realizations/%4/properties/%5/blob_id" )
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedGridName )
@@ -529,12 +527,12 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
              {
                  if ( reply->error() == QNetworkReply::NoError )
                  {
-                     parseBlobUrl( reply, caseId, ensembleName, propertyName, false );
+                     parseBlobId( reply, caseId, ensembleName, propertyName, false );
                  }
                  else
                  {
                      RiaLogging::error(
-                         std::format( "Request grid property blob URL failed: '{}'", reply->errorString().toStdString() ) );
+                         std::format( "Request grid property blob ID failed: '{}'", reply->errorString().toStdString() ) );
                      emit blobIdFinished();
                  }
              } );
@@ -568,12 +566,10 @@ QByteArray RiaSumoConnector::requestGridPropertyDataBlocking( const SumoCaseId& 
 {
     requestGridPropertyBlobIdForEnsembleBlocking( caseId, ensembleName, gridName, realization, propertyName, isoDateOrInterval );
 
-    if ( m_blobUrl.empty() ) return {};
+    if ( m_blobId.empty() ) return {};
 
-    // The REST API returns the complete blob URL, extract the blob id (last path segment).
-    auto blobUrl  = m_blobUrl.back();
-    auto urlParts = blobUrl.split( '/' );
-    auto blobId   = urlParts.last();
+    // The REST API returns the blob Id
+    auto blobId = m_blobId.back();
 
     QEventLoop eventLoop;
     QTimer     timer;
@@ -604,13 +600,9 @@ QByteArray RiaSumoConnector::requestParametersParquetDataBlocking( const SumoCas
 {
     requestParametersBlobIdForEnsembleBlocking( caseId, ensembleName );
 
-    if ( m_blobUrl.empty() ) return {};
+    if ( m_blobId.empty() ) return {};
 
-    auto blobUrl = m_blobUrl.back();
-
-    // Extract blob id from url, split string on "/", and get the last string in split
-    auto urlParts = blobUrl.split( '/' );
-    auto blobId = urlParts.last();
+    auto blobId = m_blobId.back();
 
     QEventLoop eventLoop;
     QTimer     timer;
@@ -657,7 +649,7 @@ void RiaSumoConnector::requestParametersBlobIdForEnsemble( const SumoCaseId& cas
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
 
     QString url =
-        QString( "http://localhost:8000/cases/%1/ensembles/%2/parameters/blob_url" ).arg( caseId.get() ).arg( encodedEnsembleName );
+        QString( "http://localhost:8000/cases/%1/ensembles/%2/parameters/blob_id" ).arg( caseId.get() ).arg( encodedEnsembleName );
     m_networkRequest.setUrl( QUrl( url ) );
     
     addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
@@ -668,9 +660,9 @@ void RiaSumoConnector::requestParametersBlobIdForEnsemble( const SumoCaseId& cas
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId]()
              {
-                 // parseBlobUrl handles the error case and always emits blobIdFinished, so the blocking
+                 // parseBlobId handles the error case and always emits blobIdFinished, so the blocking
                  // caller returns immediately instead of waiting for the request to time out.
-                 parseBlobUrl( reply, caseId, ensembleName, "", true );
+                 parseBlobId( reply, caseId, ensembleName, "", true );
              } );
 }
 
@@ -687,7 +679,7 @@ void RiaSumoConnector::requestBlobIdForEnsemble( const SumoCaseId& caseId, const
     QString encodedVectorName = QUrl::toPercentEncoding( vectorName );
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
 
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/vectors/%3/blob_url" )
+    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/vectors/%3/blob_id" )
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedVectorName );
@@ -701,9 +693,9 @@ void RiaSumoConnector::requestBlobIdForEnsemble( const SumoCaseId& caseId, const
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId, vectorName]()
              {
-                 // parseBlobUrl handles the error case and always emits blobIdFinished, so the blocking
+                 // parseBlobId handles the error case and always emits blobIdFinished, so the blocking
                  // caller returns immediately instead of waiting for the request to time out.
-                 parseBlobUrl( reply, caseId, ensembleName, vectorName, false );  // false = vector data
+                 parseBlobId( reply, caseId, ensembleName, vectorName, false );  // false = vector data
              } );
 }
 
@@ -724,10 +716,11 @@ void RiaSumoConnector::requestBlobDownload( const QString& blobId )
 {
     requestTokenBlocking();
 
-    QString url = constructDownloadUrl( m_server, blobId );
+    QString authUri = constructDownloadAuthUri( m_server, blobId );
 
     QNetworkRequest networkRequest;
-    networkRequest.setUrl( url );
+    //networkRequest.setUrl( url );
+    networkRequest.setUrl( authUri );
 
     // Other redirection policies are NoLessSafeRedirectPolicy, SameOriginRedirectPolicy, UserVerifiedRedirectPolicy. They were tested, but
     // did not work. Use ManualRedirectPolicy instead, and inspect the reply for the redirection target.
@@ -739,28 +732,31 @@ void RiaSumoConnector::requestBlobDownload( const QString& blobId )
 
     connect( reply,
              &QNetworkReply::finished,
-             [this, reply, blobId, url]()
+             [this, reply, blobId, authUri]()
              {
-                 if ( reply->error() == QNetworkReply::NoError )
-                 {
-                     auto contents = reply->readAll();
+                 reply->deleteLater(); // don't leak the reply
 
-                     QVariant redirectUrl = reply->attribute( QNetworkRequest::RedirectionTargetAttribute );
-                     if ( redirectUrl.isValid() )
-                     {
-                         requestBlobByRedirectUri( blobId, redirectUrl.toString() );
-                     }
-                     else
-                     {
-                         QString errorMessage = "Not able to parse and interpret valid redirect Url";
-                         RiaLogging::error( errorMessage.toStdString() );
-                     }
-                 }
-                 else
+                 if ( reply->error() != QNetworkReply::NoError )
                  {
-                     QString errorMessage = "Download failed: " + url + " failed." + reply->errorString();
-                     RiaLogging::error( errorMessage.toStdString() );
+                     RiaLogging::error( ( "Download failed: " + authUri + " failed. " + reply->errorString() ).toStdString() );
+                     return;
                  }
+
+                 // The Sumo /blob/authuri endpoint returns the pre-signed storage URI as a plain-text
+                 // string (optionally wrapped in quotes), not JSON.
+                 QString authUri = QString::fromUtf8( reply->readAll() ).trimmed();
+                 if ( authUri.startsWith( '"' ) && authUri.endsWith( '"' ) )
+                 {
+                     authUri = authUri.mid( 1, authUri.length() - 2 );
+                 }
+
+                 if ( authUri.isEmpty() )
+                 {
+                     RiaLogging::error( "authUri response was empty." );
+                     return;
+                 }
+
+                 requestBlobByRedirectUri( blobId, authUri );
              } );
 }
 
@@ -771,11 +767,13 @@ void RiaSumoConnector::requestBlobByRedirectUri( const QString& blobId, const QS
 {
     RiaLogging::debug( std::format( "Requesting blob. Id: {} Redirect URL: {}", blobId, redirectUri ) );
 
-    // Always request token for authentication
-    requestTokenBlocking();
-
     QNetworkRequest networkRequest;
     networkRequest.setUrl( redirectUri );
+
+    // The pre-signed URI carries its own credential (SAS / signature in the query string),
+    // so no Authorization header is added here. Do NOT forward the bearer token to the
+    // storage host. Redirect policy is set explicitly so behaviour is not Qt-version dependent.
+    networkRequest.setAttribute( QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy );
 
     auto reply = m_networkAccessManager->get( networkRequest );
 
@@ -783,34 +781,45 @@ void RiaSumoConnector::requestBlobByRedirectUri( const QString& blobId, const QS
              &QNetworkReply::finished,
              [this, reply, blobId, redirectUri]()
              {
-                 if ( reply->error() == QNetworkReply::NoError )
-                 {
-                     // Check response attributes
-                     auto statusCode = reply->attribute( QNetworkRequest::HttpStatusCodeAttribute ).toInt();
-                     auto contentLength = reply->header( QNetworkRequest::ContentLengthHeader ).toLongLong();
-                     auto bytesAvailable = reply->bytesAvailable();
+                 reply->deleteLater();
 
-                     RiaLogging::debug( std::format( "Response: status={}, content-length={}, bytes-available={}", 
-                                                     statusCode, contentLength, bytesAvailable ) );
-
-                     auto contents = reply->readAll();
-
-                     RiaLogging::debug( std::format( "Read {} bytes from reply", contents.size() ) );
-
-                     QString msg = "Received data from : " + redirectUri;
-                     RiaLogging::info( msg.toStdString() );
-
-                     parquetDownloadComplete( blobId, contents, redirectUri );
-
-                     emit parquetDownloadFinished( contents, redirectUri );
-                 }
-                 else
+                 if ( reply->error() != QNetworkReply::NoError )
                  {
                      QString errorMessage = "Download failed: " + redirectUri + " failed." + reply->errorString();
                      RiaLogging::error( errorMessage.toStdString() );
 
                      emit parquetDownloadFinished( {}, redirectUri );
+                     return;
                  }
+
+                 auto statusCode     = reply->attribute( QNetworkRequest::HttpStatusCodeAttribute ).toInt();
+                 auto contentLength  = reply->header( QNetworkRequest::ContentLengthHeader ).toLongLong();
+                 auto bytesAvailable = reply->bytesAvailable();
+
+                 RiaLogging::debug(
+                     std::format( "Response: status={}, content-length={}, bytes-available={}", statusCode, contentLength, bytesAvailable ) );
+
+                 auto contents = reply->readAll();
+
+                 RiaLogging::debug( std::format( "Read {} bytes from reply", contents.size() ) );
+
+                 // Guard against a silently truncated transfer: a dropped connection on a
+                 // chunked response can still report NoError. If the server told us how many
+                 // bytes to expect and we got fewer, treat it as a failure.
+                 if ( contentLength > 0 && contents.size() != contentLength )
+                 {
+                     RiaLogging::error( std::format( "Download truncated: expected {} bytes, got {}.", contentLength, contents.size() ) );
+
+                     emit parquetDownloadFinished( {}, redirectUri );
+                     return;
+                 }
+
+                 QString msg = "Received data from : " + redirectUri;
+                 RiaLogging::info( msg.toStdString() );
+
+                 parquetDownloadComplete( blobId, contents, redirectUri );
+
+                 emit parquetDownloadFinished( contents, redirectUri );
              } );
 }
 
@@ -821,14 +830,10 @@ QByteArray RiaSumoConnector::requestParquetDataBlocking( const SumoCaseId& caseI
 {
     requestBlobIdForEnsembleBlocking( caseId, ensembleName, vectorName );
 
-    if ( m_blobUrl.empty() ) return {};
+    if ( m_blobId.empty() ) return {};
 
     // The REST API now returns the complete blob URL, not just an ID
-    auto blobUrl = m_blobUrl.back();
-
-    // Extract blob id from url, split string on "/", and get the last string in split
-    auto urlParts = blobUrl.split( '/' );
-    auto blobId   = urlParts.last();
+    auto blobId = m_blobId.back();
 
     QEventLoop eventLoop;
     QTimer     timer;
@@ -867,6 +872,14 @@ QString RiaSumoConnector::constructDownloadUrl( const QString& server, const QSt
 {
     return server + "/api/v1/objects('" + blobId + "')/blob";
     // https: // main-sumo-prod.radix.equinor.com/api/v1/objects('76d6d11f-2278-3fe2-f12f-77142ad163c6')/blob
+}
+
+//--------------------------------------------------------------------------------------------------
+///
+//--------------------------------------------------------------------------------------------------
+QString RiaSumoConnector::constructDownloadAuthUri( const QString& server, const QString& blobId )
+{
+    return server + "/api/v1/objects('" + blobId + "')/blob/authuri";
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1131,7 +1144,7 @@ void RiaSumoConnector::parseGridPropertyInfo( QNetworkReply*    reply,
 //--------------------------------------------------------------------------------------------------
 ///
 //--------------------------------------------------------------------------------------------------
-void RiaSumoConnector::parseBlobUrl( QNetworkReply*    reply,
+void RiaSumoConnector::parseBlobId( QNetworkReply*    reply,
                                      const SumoCaseId& caseId,
                                      const QString&    ensembleName,
                                      const QString&    vectorName,
@@ -1140,87 +1153,39 @@ void RiaSumoConnector::parseBlobUrl( QNetworkReply*    reply,
     QByteArray result = reply->readAll();
     reply->deleteLater();
 
-    m_blobUrl.clear();
+    m_blobId.clear();
 
     if ( reply->error() == QNetworkReply::NoError )
     {
-        // The REST API returns a plain string (the blob URL)
-        QString blobUrl = QString::fromUtf8( result ).trimmed();
+        // The REST API returns a plain string (the blob id)
+        QString blobId = QString::fromUtf8( result ).trimmed();
 
         // Remove quotes if present (FastAPI returns strings with quotes)
-        if ( blobUrl.startsWith( '"' ) && blobUrl.endsWith( '"' ) )
+        if ( blobId.startsWith( '"' ) && blobId.endsWith( '"' ) )
         {
-            blobUrl = blobUrl.mid( 1, blobUrl.length() - 2 );
+            blobId = blobId.mid( 1, blobId.length() - 2 );
         }
 
-        m_blobUrl.push_back( blobUrl );
+        m_blobId.push_back( blobId );
 
         // Context-aware logging
         if ( isParameters )
         {
-            RiaLogging::debug( std::format( "Received blob URL for parameters: {}", blobUrl.toStdString() ) );
+            RiaLogging::debug( std::format( "Received blob ID for parameters: {}", blobId.toStdString() ) );
         }
         else
         {
-            RiaLogging::debug( std::format( "Received blob URL for vector '{}': {}", vectorName.toStdString(), blobUrl.toStdString() ) );
+            RiaLogging::debug( std::format( "Received blob ID for vector '{}': {}", vectorName.toStdString(), blobId.toStdString() ) );
         }
     }
     else
     {
         // Context-aware error logging
         QString errorContext = isParameters ? "parameters" : QString( "vector '%1'" ).arg( vectorName );
-        RiaLogging::error( std::format( "Request blob URL failed for {}: {}", 
-                                       errorContext.toStdString(), 
-                                       reply->errorString().toStdString() ) );
+        RiaLogging::error( std::format( "Request blob ID failed for {}: {}", errorContext.toStdString(), reply->errorString().toStdString() ) );
     }
 
     emit blobIdFinished();
-}
-
-//--------------------------------------------------------------------------------------------------
-///
-//--------------------------------------------------------------------------------------------------
-void RiaSumoConnector::parseBlobIds( QNetworkReply*    reply,
-                                     const SumoCaseId& caseId,
-                                     const QString&    ensembleName,
-                                     const QString&    vectorName,
-                                     bool              isParameters )
-{
-    // TODO: REMOVE
-
-
-    /*QByteArray result = reply->readAll();
-    reply->deleteLater();
-
-    m_blobUrl.clear();
-
-    if ( reply->error() == QNetworkReply::NoError )
-    {
-        QJsonDocument doc     = QJsonDocument::fromJson( result );
-        QJsonObject   jsonObj = doc.object();
-
-        QJsonObject rootHits    = jsonObj["hits"].toObject();
-        QJsonArray  hitsObjects = rootHits["hits"].toArray();
-
-        for ( const QJsonValue& value : hitsObjects )
-        {
-            QJsonObject resultObj = value.toObject();
-            QJsonObject sourceObj = resultObj["_source"].toObject();
-            QJsonObject fmuObj    = sourceObj["_sumo"].toObject();
-
-            auto blobName = fmuObj["blob_name"].toString();
-            m_blobUrl.push_back( blobName );
-        }
-    }
-    else
-    {
-        QString errorContext = isParameters ? "parameters" : QString( "vector '%1'" ).arg( vectorName );
-        RiaLogging::error( std::format( "Request blob IDs failed for {}: {}", 
-                                       errorContext.toStdString(), 
-                                       reply->errorString().toStdString() ) );
-    }
-
-    emit blobIdFinished();*/
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1341,9 +1306,9 @@ std::vector<SumoGridPropertyInfo> RiaSumoConnector::gridPropertyInfos() const
 //--------------------------------------------------------------------------------------------------
 ///
 //--------------------------------------------------------------------------------------------------
-std::vector<QString> RiaSumoConnector::blobUrls() const
+std::vector<QString> RiaSumoConnector::blobIds() const
 {
-    return m_blobUrl;
+    return m_blobId;
 }
 
 //--------------------------------------------------------------------------------------------------

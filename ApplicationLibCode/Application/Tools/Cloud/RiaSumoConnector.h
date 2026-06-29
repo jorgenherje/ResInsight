@@ -158,7 +158,7 @@ public:
     std::vector<QString>      realizationIds() const;
     std::vector<SumoGridInfo>         gridInfos() const;
     std::vector<SumoGridPropertyInfo> gridPropertyInfos() const;
-    std::vector<QString>              blobUrls() const;
+    std::vector<QString>              blobIds() const;
     std::vector<SumoRedirect> blobContents() const;
 
 public slots:
@@ -169,8 +169,7 @@ public slots:
     void parseRealizationNumbers( QNetworkReply* reply, const SumoCaseId& caseId, const QString& ensembleName );
     void parseGridInfo( QNetworkReply* reply, const SumoCaseId& caseId, const QString& ensembleName );
     void parseGridPropertyInfo( QNetworkReply* reply, const SumoCaseId& caseId, const QString& ensembleName, const QString& gridName, int realization );
-    void parseBlobUrl( QNetworkReply* reply, const SumoCaseId& caseId, const QString& ensembleName, const QString& vectorName, bool isParameters );
-    void parseBlobIds( QNetworkReply* reply, const SumoCaseId& caseId, const QString& ensembleName, const QString& vectorName, bool isParameters );
+    void parseBlobId( QNetworkReply* reply, const SumoCaseId& caseId, const QString& ensembleName, const QString& vectorName, bool isParameters );
 
     void requestFailed( const QAbstractOAuth::Error error );
     void parquetDownloadComplete( const QString& blobId, const QByteArray&, const QString& url );
@@ -199,6 +198,7 @@ private:
 
     static QString constructSearchUrl( const QString& server );
     static QString constructDownloadUrl( const QString& server, const QString& blobId );
+    static QString constructDownloadAuthUri( const QString& server, const QString& blobId );
 
     void wrapAndCallNetworkRequest( std::function<void()> requestCallable, const QMetaMethod& signalMethod );
 
@@ -212,7 +212,7 @@ private:
 
     std::vector<SumoGridPropertyInfo> m_gridPropertyInfos;
 
-    std::vector<QString> m_blobUrl;
+    std::vector<QString> m_blobId;
 
     std::vector<SumoRedirect> m_redirectInfo;
 };
