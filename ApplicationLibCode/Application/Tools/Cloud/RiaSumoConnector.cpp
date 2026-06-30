@@ -87,7 +87,7 @@ void RiaSumoConnector::requestCasesForField( const QString& fieldName )
     requestTokenBlocking();
 
     QNetworkRequest m_networkRequest;
-    QString url = QString( "http://localhost:8000/cases?asset_name=%1" ).arg( fieldName );
+    QString url = QString( "%1/cases?asset_name=%2" ).arg(server()).arg(fieldName);
     m_networkRequest.setUrl( QUrl( url ) );
     
     addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
@@ -123,7 +123,7 @@ void RiaSumoConnector::requestAssets()
     requestTokenBlocking();
 
     QNetworkRequest m_networkRequest;
-    m_networkRequest.setUrl( QUrl( "http://localhost:8000/assets" ) );
+    m_networkRequest.setUrl( QUrl( QString( "%1/assets" ).arg( server() ) ) );
 
     addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
@@ -159,7 +159,7 @@ void RiaSumoConnector::requestEnsembleByCasesId( const SumoCaseId& caseId )
     requestTokenBlocking();
     
     QNetworkRequest m_networkRequest;
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles" ).arg( caseId.get() );
+    QString url = QString( "%1/cases/%2/ensembles" ).arg(server()).arg( caseId.get() );
     m_networkRequest.setUrl( QUrl( url ) );
     
     addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
@@ -227,7 +227,7 @@ void RiaSumoConnector::requestVectorNamesForEnsemble( const SumoCaseId& caseId, 
     requestTokenBlocking();    
 
     QNetworkRequest m_networkRequest;
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/vector_list" ).arg( caseId.get() ).arg( ensembleName );
+    QString url = QString( "%1/cases/%2/ensembles/%3/vector_list" ).arg(server()).arg( caseId.get() ).arg( ensembleName );
     m_networkRequest.setUrl( QUrl( url ) );
     
     addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );   
@@ -264,7 +264,7 @@ void RiaSumoConnector::requestRealizationIdsForEnsemble( const SumoCaseId& caseI
     requestTokenBlocking();    
 
     QNetworkRequest m_networkRequest;
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/realizations" ).arg( caseId.get() ).arg( ensembleName );
+    QString url = QString( "%1/cases/%2/ensembles/%3/realizations" ).arg(server()).arg( caseId.get() ).arg( ensembleName );
     m_networkRequest.setUrl( QUrl( url ) );
     
     addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
@@ -303,7 +303,7 @@ void RiaSumoConnector::requestGridInfoForEnsemble( const SumoCaseId& caseId, con
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
     QNetworkRequest m_networkRequest;
     QString url =
-        QString( "http://localhost:8000/cases/%1/ensembles/%2/grid_info_list" ).arg( caseId.get() ).arg( encodedEnsembleName );
+        QString( "%1/cases/%2/ensembles/%3/grid_info_list" ).arg(server()).arg( caseId.get() ).arg( encodedEnsembleName );
     m_networkRequest.setUrl( QUrl( url ) );
 
     addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
@@ -349,7 +349,8 @@ void RiaSumoConnector::requestGridBlobIdForEnsemble( const SumoCaseId& caseId, c
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
     QString encodedGridName     = QUrl::toPercentEncoding( gridName );
 
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/grids/%3/realizations/%4/blob_id" )
+    QString url = QString( "%1/cases/%2/ensembles/%3/grids/%4/realizations/%5/blob_id" )
+                      .arg(server())
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedGridName )
@@ -442,7 +443,8 @@ void RiaSumoConnector::requestGridPropertyInfoForEnsemble( const SumoCaseId& cas
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
     QString encodedGridName     = QUrl::toPercentEncoding( gridName );
 
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/grids/%3/realizations/%4/property_info_list" )
+    QString url = QString( "%1/cases/%2/ensembles/%3/grids/%4/realizations/%5/property_info_list" )
+                      .arg(server())
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedGridName )
@@ -495,14 +497,15 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
 {
     requestTokenBlocking();
 
-    QNetworkRequest m_networkRequest;
+    QNetworkRequest networkRequest;
 
     // Properly URL-encode the path components
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
     QString encodedGridName     = QUrl::toPercentEncoding( gridName );
     QString encodedPropertyName = QUrl::toPercentEncoding( propertyName );
 
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/grids/%3/realizations/%4/properties/%5/blob_id" )
+    QString url = QString( "%1/cases/%2/ensembles/%3/grids/%4/realizations/%5/properties/%6/blob_id" )
+                      .arg(server())
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedGridName )
@@ -515,11 +518,11 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
         url += QString( "?property_iso_date_or_interval=%1" ).arg( QString( QUrl::toPercentEncoding( isoDateOrInterval ) ) );
     }
 
-    m_networkRequest.setUrl( QUrl( url ) );
+    networkRequest.setUrl( QUrl( url ) );
     
-    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
+    addStandardHeader( networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
-    auto reply = m_networkAccessManager->get( m_networkRequest );
+    auto reply = m_networkAccessManager->get( networkRequest );
 
     connect( reply,
              &QNetworkReply::finished,
@@ -643,18 +646,18 @@ void RiaSumoConnector::requestParametersBlobIdForEnsemble( const SumoCaseId& cas
 {
     requestTokenBlocking();
 
-    QNetworkRequest m_networkRequest;
+    QNetworkRequest networkRequest;
 
     // Properly URL-encode the path components
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
 
     QString url =
-        QString( "http://localhost:8000/cases/%1/ensembles/%2/parameters/blob_id" ).arg( caseId.get() ).arg( encodedEnsembleName );
-    m_networkRequest.setUrl( QUrl( url ) );
+        QString( "%1/cases/%2/ensembles/%3/parameters/blob_id" ).arg(server()).arg( caseId.get() ).arg( encodedEnsembleName );
+    networkRequest.setUrl( QUrl( url ) );
     
-    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
+    addStandardHeader( networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
-    auto reply = m_networkAccessManager->get( m_networkRequest );
+    auto reply = m_networkAccessManager->get( networkRequest );
 
     connect( reply,
              &QNetworkReply::finished,
@@ -673,21 +676,22 @@ void RiaSumoConnector::requestBlobIdForEnsemble( const SumoCaseId& caseId, const
 {
     requestTokenBlocking();
 
-    QNetworkRequest m_networkRequest;
+    QNetworkRequest networkRequest;
 
     // Properly URL-encode the path components
     QString encodedVectorName = QUrl::toPercentEncoding( vectorName );
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
 
-    QString url = QString( "http://localhost:8000/cases/%1/ensembles/%2/vectors/%3/blob_id" )
+    QString url = QString( "%1/cases/%2/ensembles/%3/vectors/%4/blob_id" )
+                      .arg(server())
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedVectorName );
-    m_networkRequest.setUrl( QUrl( url ) );
+    networkRequest.setUrl( QUrl( url ) );
     
-    addStandardHeader( m_networkRequest, token(), RiaCloudDefines::contentTypeJson() );
+    addStandardHeader( networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
-    auto reply = m_networkAccessManager->get( m_networkRequest );
+    auto reply = m_networkAccessManager->get( networkRequest );
 
     connect( reply,
              &QNetworkReply::finished,
@@ -716,15 +720,10 @@ void RiaSumoConnector::requestBlobDownload( const QString& blobId )
 {
     requestTokenBlocking();
 
-    QString authUri = constructDownloadAuthUri( m_server, blobId );
+    QString url = QString( "%1/blobs/%2/sas_token_and_blob_base_uri" ).arg(server()).arg( blobId );
 
     QNetworkRequest networkRequest;
-    //networkRequest.setUrl( url );
-    networkRequest.setUrl( authUri );
-
-    // Other redirection policies are NoLessSafeRedirectPolicy, SameOriginRedirectPolicy, UserVerifiedRedirectPolicy. They were tested, but
-    // did not work. Use ManualRedirectPolicy instead, and inspect the reply for the redirection target.
-    networkRequest.setAttribute( QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy );
+    networkRequest.setUrl( QUrl( url ) );
 
     addStandardHeader( networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
@@ -732,45 +731,52 @@ void RiaSumoConnector::requestBlobDownload( const QString& blobId )
 
     connect( reply,
              &QNetworkReply::finished,
-             [this, reply, blobId, authUri]()
+             [this, reply, blobId, url]()
              {
                  reply->deleteLater(); // don't leak the reply
 
                  if ( reply->error() != QNetworkReply::NoError )
                  {
-                     RiaLogging::error( ( "Download failed: " + authUri + " failed. " + reply->errorString() ).toStdString() );
+                     RiaLogging::error( ( "Download failed: " + url + " failed. " + reply->errorString() ).toStdString() );
                      return;
                  }
 
-                 // The Sumo /blob/authuri endpoint returns the pre-signed storage URI as a plain-text
-                 // string (optionally wrapped in quotes), not JSON.
-                 QString authUri = QString::fromUtf8( reply->readAll() ).trimmed();
-                 if ( authUri.startsWith( '"' ) && authUri.endsWith( '"' ) )
+                 // The backend returns BlobAccessInfo as JSON: { "sasToken": "...", "blobStoreBaseUri": "..." }
+                 const QByteArray    contents = reply->readAll();
+                 QJsonParseError     parseError;
+                 const QJsonDocument doc = QJsonDocument::fromJson( contents, &parseError );
+                 if ( parseError.error != QJsonParseError::NoError || !doc.isObject() )
                  {
-                     authUri = authUri.mid( 1, authUri.length() - 2 );
-                 }
-
-                 if ( authUri.isEmpty() )
-                 {
-                     RiaLogging::error( "authUri response was empty." );
+                     RiaLogging::error( std::format( "Could not parse blob access info response as JSON: {}",
+                                                     parseError.errorString().toStdString() ) );
                      return;
                  }
 
-                 requestBlobByRedirectUri( blobId, authUri );
+                 const QJsonObject obj         = doc.object();
+                 const QString     sasToken    = obj.value( "sasToken" ).toString();
+                 const QString     blobBaseUri = obj.value( "blobStoreBaseUri" ).toString();
+                 if ( blobBaseUri.isEmpty() )
+                 {
+                     RiaLogging::error( "Blob access info response did not contain a blobStoreBaseUri." );
+                     return;
+                 }
+
+                 const QString sasUri = constructSasUri( blobBaseUri, blobId, sasToken );
+                 requestBlobBySasUri( blobId, sasUri );
              } );
 }
 
 //--------------------------------------------------------------------------------------------------
 ///
 //--------------------------------------------------------------------------------------------------
-void RiaSumoConnector::requestBlobByRedirectUri( const QString& blobId, const QString& redirectUri )
+void RiaSumoConnector::requestBlobBySasUri( const QString& blobId, const QString& sasUri )
 {
-    RiaLogging::debug( std::format( "Requesting blob. Id: {} Redirect URL: {}", blobId, redirectUri ) );
+    RiaLogging::debug( std::format( "Requesting blob. Id: {} SAS URI: {}", blobId, sasUri ) );
 
     QNetworkRequest networkRequest;
-    networkRequest.setUrl( redirectUri );
+    networkRequest.setUrl( sasUri );
 
-    // The pre-signed URI carries its own credential (SAS / signature in the query string),
+    // The pre-signed SAS URI carries its own credential (signature in the query string),
     // so no Authorization header is added here. Do NOT forward the bearer token to the
     // storage host. Redirect policy is set explicitly so behaviour is not Qt-version dependent.
     networkRequest.setAttribute( QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy );
@@ -779,16 +785,16 @@ void RiaSumoConnector::requestBlobByRedirectUri( const QString& blobId, const QS
 
     connect( reply,
              &QNetworkReply::finished,
-             [this, reply, blobId, redirectUri]()
+             [this, reply, blobId, sasUri]()
              {
                  reply->deleteLater();
 
                  if ( reply->error() != QNetworkReply::NoError )
                  {
-                     QString errorMessage = "Download failed: " + redirectUri + " failed." + reply->errorString();
+                     QString errorMessage = "Download failed: " + sasUri + " failed." + reply->errorString();
                      RiaLogging::error( errorMessage.toStdString() );
 
-                     emit parquetDownloadFinished( {}, redirectUri );
+                     emit parquetDownloadFinished( {}, sasUri );
                      return;
                  }
 
@@ -810,16 +816,16 @@ void RiaSumoConnector::requestBlobByRedirectUri( const QString& blobId, const QS
                  {
                      RiaLogging::error( std::format( "Download truncated: expected {} bytes, got {}.", contentLength, contents.size() ) );
 
-                     emit parquetDownloadFinished( {}, redirectUri );
+                     emit parquetDownloadFinished( {}, sasUri );
                      return;
                  }
 
-                 QString msg = "Received data from : " + redirectUri;
+                 QString msg = "Received data from : " + sasUri;
                  RiaLogging::info( msg.toStdString() );
 
-                 parquetDownloadComplete( blobId, contents, redirectUri );
+                 parquetDownloadComplete( blobId, contents, sasUri );
 
-                 emit parquetDownloadFinished( contents, redirectUri );
+                 emit parquetDownloadFinished( contents, sasUri );
              } );
 }
 
@@ -858,28 +864,18 @@ QByteArray RiaSumoConnector::requestParquetDataBlocking( const SumoCaseId& caseI
 }
 
 //--------------------------------------------------------------------------------------------------
-//
+/// Assemble the pre-signed download URI: {blobStoreBaseUri}/{blobId}?{sasToken}
 //--------------------------------------------------------------------------------------------------
-QString RiaSumoConnector::constructSearchUrl( const QString& server )
+QString RiaSumoConnector::constructSasUri( const QString& blobStoreBaseUri, const QString& blobId, const QString& sasToken )
 {
-    return server + "/api/v1/search";
-}
-
-//--------------------------------------------------------------------------------------------------
-///
-//--------------------------------------------------------------------------------------------------
-QString RiaSumoConnector::constructDownloadUrl( const QString& server, const QString& blobId )
-{
-    return server + "/api/v1/objects('" + blobId + "')/blob";
-    // https: // main-sumo-prod.radix.equinor.com/api/v1/objects('76d6d11f-2278-3fe2-f12f-77142ad163c6')/blob
-}
-
-//--------------------------------------------------------------------------------------------------
-///
-//--------------------------------------------------------------------------------------------------
-QString RiaSumoConnector::constructDownloadAuthUri( const QString& server, const QString& blobId )
-{
-    return server + "/api/v1/objects('" + blobId + "')/blob/authuri";
+    QString sasUri = blobStoreBaseUri;
+    if ( !sasUri.endsWith( '/' ) ) sasUri += '/';
+    sasUri += blobId;
+    if ( !sasToken.isEmpty() )
+    {
+        sasUri += ( sasToken.startsWith( '?' ) ? sasToken : ( "?" + sasToken ) );
+    }
+    return sasUri;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -905,29 +901,6 @@ void RiaSumoConnector::wrapAndCallNetworkRequest( std::function<void()> requestC
 
     timer.start( RiaSumoDefines::requestTimeoutMillis() );
     eventLoop.exec( QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents );
-}
-
-//--------------------------------------------------------------------------------------------------
-///
-//--------------------------------------------------------------------------------------------------
-QNetworkReply* RiaSumoConnector::makeRequest( const std::map<QString, QString>& parameters, const QString& server, const QString& token )
-{
-    QNetworkRequest m_networkRequest;
-    m_networkRequest.setUrl( QUrl( constructSearchUrl( server ) ) );
-
-    addStandardHeader( m_networkRequest, token, RiaCloudDefines::contentTypeJson() );
-
-    QJsonObject obj;
-    for ( auto [key, value] : parameters )
-    {
-        obj.insert( key, value );
-    }
-
-    QJsonDocument doc( obj );
-    QString       strJson( doc.toJson( QJsonDocument::Compact ) );
-
-    auto reply = m_networkAccessManager->post( m_networkRequest, strJson.toUtf8() );
-    return reply;
 }
 
 //--------------------------------------------------------------------------------------------------

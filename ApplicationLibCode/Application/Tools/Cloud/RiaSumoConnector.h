@@ -116,7 +116,7 @@ public:
     void requestBlobIdForEnsembleBlocking( const SumoCaseId& caseId, const QString& ensembleName, const QString& vectorName );
 
     void requestBlobDownload( const QString& blobId );
-    void requestBlobByRedirectUri( const QString& blobId, const QString& redirectUri );
+    void requestBlobBySasUri( const QString& blobId, const QString& sasUri );
 
     QByteArray requestParquetDataBlocking( const SumoCaseId& caseId, const QString& ensembleName, const QString& vectorName );
 
@@ -192,13 +192,10 @@ signals:
 private:
     void addStandardHeader( QNetworkRequest& networkRequest, const QString& token, const QString& contentType );
 
-    QNetworkReply* makeRequest( const std::map<QString, QString>& parameters, const QString& server, const QString& token );
     QNetworkReply* makeDownloadRequest( const QString& url, const QString& token, const QString& contentType );
     void           requestParquetData( const QString& url, const QString& token );
 
-    static QString constructSearchUrl( const QString& server );
-    static QString constructDownloadUrl( const QString& server, const QString& blobId );
-    static QString constructDownloadAuthUri( const QString& server, const QString& blobId );
+    static QString constructSasUri( const QString& blobStoreBaseUri, const QString& blobId, const QString& sasToken );
 
     void wrapAndCallNetworkRequest( std::function<void()> requestCallable, const QMetaMethod& signalMethod );
 
