@@ -131,18 +131,12 @@ public:
     void requestGridPropertyInfoForEnsemble( const SumoCaseId& caseId, const QString& ensembleName, const QString& gridName, int realization );
     void requestGridPropertyInfoForEnsembleBlocking( const SumoCaseId& caseId, const QString& ensembleName, const QString& gridName, int realization );
 
-    void requestGridPropertyBlobIdForEnsemble( const SumoCaseId& caseId,
+    QString requestGridPropertyBlobIdBlocking( const SumoCaseId& caseId,
                                                const QString&    ensembleName,
                                                const QString&    gridName,
                                                int               realization,
                                                const QString&    propertyName,
                                                const QString&    isoDateOrInterval );
-    void requestGridPropertyBlobIdForEnsembleBlocking( const SumoCaseId& caseId,
-                                                       const QString&    ensembleName,
-                                                       const QString&    gridName,
-                                                       int               realization,
-                                                       const QString&    propertyName,
-                                                       const QString&    isoDateOrInterval );
 
     QByteArray requestGridPropertyDataBlocking( const SumoCaseId& caseId,
                                                 const QString&    ensembleName,
@@ -212,4 +206,9 @@ private:
     std::vector<QString> m_blobId;
 
     std::vector<SumoRedirect> m_redirectInfo;
+
+    // Downloaded grid-property blobs, keyed by the full property identity (case, ensemble, grid, realization,
+    // property, timestamp). Displaying a property computes its global legend range across all time steps, so a
+    // property is requested repeatedly; the cache ensures each blob is fetched from Sumo at most once.
+    std::map<QString, QByteArray> m_gridPropertyBlobCache;
 };

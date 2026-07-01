@@ -94,7 +94,7 @@ void RiaSumoConnector::requestCasesForField( const QString& fieldName )
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply]()
              {
@@ -129,7 +129,7 @@ void RiaSumoConnector::requestAssets()
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply]()
              {
@@ -166,7 +166,7 @@ void RiaSumoConnector::requestEnsembleByCasesId( const SumoCaseId& caseId )
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, caseId]()
              {
@@ -234,7 +234,7 @@ void RiaSumoConnector::requestVectorNamesForEnsemble( const SumoCaseId& caseId, 
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId]()
              {
@@ -271,7 +271,7 @@ void RiaSumoConnector::requestRealizationIdsForEnsemble( const SumoCaseId& caseI
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId]()
              {
@@ -310,7 +310,7 @@ void RiaSumoConnector::requestGridInfoForEnsemble( const SumoCaseId& caseId, con
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId]()
              {
@@ -361,7 +361,7 @@ void RiaSumoConnector::requestGridBlobIdForEnsemble( const SumoCaseId& caseId, c
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId, gridName]()
              {
@@ -455,7 +455,7 @@ void RiaSumoConnector::requestGridPropertyInfoForEnsemble( const SumoCaseId& cas
 
     auto reply = m_networkAccessManager->get( m_networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, caseId, ensembleName, gridName, realization]()
              {
@@ -488,16 +488,14 @@ void RiaSumoConnector::requestGridPropertyInfoForEnsembleBlocking( const SumoCas
 //--------------------------------------------------------------------------------------------------
 ///
 //--------------------------------------------------------------------------------------------------
-void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& caseId,
-                                                             const QString&    ensembleName,
-                                                             const QString&    gridName,
-                                                             int               realization,
-                                                             const QString&    propertyName,
-                                                             const QString&    isoDateOrInterval )
+QString RiaSumoConnector::requestGridPropertyBlobIdBlocking( const SumoCaseId& caseId,
+                                                            const QString&    ensembleName,
+                                                            const QString&    gridName,
+                                                            int               realization,
+                                                            const QString&    propertyName,
+                                                            const QString&    isoDateOrInterval )
 {
     requestTokenBlocking();
-
-    QNetworkRequest networkRequest;
 
     // Properly URL-encode the path components
     QString encodedEnsembleName = QUrl::toPercentEncoding( ensembleName );
@@ -505,7 +503,7 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
     QString encodedPropertyName = QUrl::toPercentEncoding( propertyName );
 
     QString url = QString( "%1/cases/%2/ensembles/%3/grids/%4/realizations/%5/properties/%6/blob_id" )
-                      .arg(server())
+                      .arg( server() )
                       .arg( caseId.get() )
                       .arg( encodedEnsembleName )
                       .arg( encodedGridName )
@@ -518,43 +516,47 @@ void RiaSumoConnector::requestGridPropertyBlobIdForEnsemble( const SumoCaseId& c
         url += QString( "?property_iso_date_or_interval=%1" ).arg( QString( QUrl::toPercentEncoding( isoDateOrInterval ) ) );
     }
 
+    QNetworkRequest networkRequest;
     networkRequest.setUrl( QUrl( url ) );
-    
     addStandardHeader( networkRequest, token(), RiaCloudDefines::contentTypeJson() );
 
     auto reply = m_networkAccessManager->get( networkRequest );
 
-    connect( reply,
-             &QNetworkReply::finished,
-             [this, reply, caseId, ensembleName, propertyName]()
-             {
-                 if ( reply->error() == QNetworkReply::NoError )
-                 {
-                     parseBlobId( reply, caseId, ensembleName, propertyName, false );
-                 }
-                 else
-                 {
-                     RiaLogging::error(
-                         std::format( "Request grid property blob ID failed: '{}'", reply->errorString().toStdString() ) );
-                     emit blobIdFinished();
-                 }
-             } );
-}
+    // Wait for THIS reply only. Binding the event loop to the reply, rather than to the shared blobIdFinished
+    // signal, is what makes the mapping correct: a still-pending reply from an earlier property's request can no
+    // longer satisfy this wait and hand us its blob id (which previously caused e.g. SWAT to be served the SWCR
+    // blob). The blob id is read straight off this reply and never routed through shared state.
+    QEventLoop eventLoop;
+    QTimer     timer;
+    timer.setSingleShot( true );
+    QObject::connect( &timer, &QTimer::timeout, &eventLoop, &QEventLoop::quit );
+    QObject::connect( reply, &QNetworkReply::finished, &eventLoop, &QEventLoop::quit );
 
-//--------------------------------------------------------------------------------------------------
-///
-//--------------------------------------------------------------------------------------------------
-void RiaSumoConnector::requestGridPropertyBlobIdForEnsembleBlocking( const SumoCaseId& caseId,
-                                                                     const QString&    ensembleName,
-                                                                     const QString&    gridName,
-                                                                     int               realization,
-                                                                     const QString&    propertyName,
-                                                                     const QString&    isoDateOrInterval )
-{
-    auto requestCallable = [this, caseId, ensembleName, gridName, realization, propertyName, isoDateOrInterval]
-    { requestGridPropertyBlobIdForEnsemble( caseId, ensembleName, gridName, realization, propertyName, isoDateOrInterval ); };
-    QMetaMethod signalMethod = QMetaMethod::fromSignal( &RiaSumoConnector::blobIdFinished );
-    wrapAndCallNetworkRequest( requestCallable, signalMethod );
+    timer.start( RiaSumoDefines::requestTimeoutMillis() );
+    eventLoop.exec( QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents );
+
+    if ( !reply->isFinished() || reply->error() != QNetworkReply::NoError )
+    {
+        if ( reply->error() != QNetworkReply::NoError )
+        {
+            RiaLogging::error( std::format( "Request grid property blob ID failed: '{}'", reply->errorString().toStdString() ) );
+        }
+        reply->deleteLater();
+        return {};
+    }
+
+    // The REST API returns the blob id as a plain string, quoted by FastAPI.
+    QString blobId = QString::fromUtf8( reply->readAll() ).trimmed();
+    reply->deleteLater();
+
+    if ( blobId.startsWith( '"' ) && blobId.endsWith( '"' ) )
+    {
+        blobId = blobId.mid( 1, blobId.length() - 2 );
+    }
+
+    RiaLogging::debug( std::format( "Received blob ID for vector '{}': {}", propertyName.toStdString(), blobId.toStdString() ) );
+
+    return blobId;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -567,12 +569,22 @@ QByteArray RiaSumoConnector::requestGridPropertyDataBlocking( const SumoCaseId& 
                                                               const QString&    propertyName,
                                                               const QString&    isoDateOrInterval )
 {
-    requestGridPropertyBlobIdForEnsembleBlocking( caseId, ensembleName, gridName, realization, propertyName, isoDateOrInterval );
+    // Serve from cache when possible. Keyed by the full property identity (not the blob id), a repeat request is
+    // answered without even asking Sumo for the blob id. This avoids re-downloading every time step when a
+    // property's global legend range is computed, and again when it is displayed.
+    const QString cacheKey = QString( "%1|%2|%3|%4|%5|%6" )
+                                 .arg( caseId.get(), ensembleName, gridName )
+                                 .arg( realization )
+                                 .arg( propertyName, isoDateOrInterval );
+    if ( auto it = m_gridPropertyBlobCache.find( cacheKey ); it != m_gridPropertyBlobCache.end() )
+    {
+        return it->second;
+    }
 
-    if ( m_blobId.empty() ) return {};
-
-    // The REST API returns the blob Id
-    auto blobId = m_blobId.back();
+    // Resolve the blob id for this exact property. The getter waits on its own reply, so it can only ever return
+    // this property's id (or empty on failure) - never a neighbouring request's id.
+    const QString blobId = requestGridPropertyBlobIdBlocking( caseId, ensembleName, gridName, realization, propertyName, isoDateOrInterval );
+    if ( blobId.isEmpty() ) return {};
 
     QEventLoop eventLoop;
     QTimer     timer;
@@ -585,11 +597,16 @@ QByteArray RiaSumoConnector::requestGridPropertyDataBlocking( const SumoCaseId& 
     timer.start( RiaSumoDefines::requestTimeoutMillis() );
     eventLoop.exec( QEventLoop::ProcessEventsFlag::ExcludeUserInputEvents );
 
-    for ( const auto& blobData : m_redirectInfo )
+    // Move the downloaded blob out of the transient redirect list and into the cache. Erasing the consumed entry
+    // also keeps m_redirectInfo from growing without bound as more properties are downloaded.
+    for ( auto it = m_redirectInfo.begin(); it != m_redirectInfo.end(); ++it )
     {
-        if ( blobData.objectId == blobId )
+        if ( it->objectId == blobId )
         {
-            return blobData.contents;
+            QByteArray contents = it->contents;
+            m_redirectInfo.erase( it );
+            if ( !contents.isEmpty() ) m_gridPropertyBlobCache[cacheKey] = contents;
+            return contents;
         }
     }
 
@@ -659,7 +676,7 @@ void RiaSumoConnector::requestParametersBlobIdForEnsemble( const SumoCaseId& cas
 
     auto reply = m_networkAccessManager->get( networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId]()
              {
@@ -693,7 +710,7 @@ void RiaSumoConnector::requestBlobIdForEnsemble( const SumoCaseId& caseId, const
 
     auto reply = m_networkAccessManager->get( networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, ensembleName, caseId, vectorName]()
              {
@@ -729,7 +746,7 @@ void RiaSumoConnector::requestBlobDownload( const QString& blobId )
 
     auto reply = m_networkAccessManager->get( networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, blobId, url]()
              {
@@ -783,7 +800,7 @@ void RiaSumoConnector::requestBlobBySasUri( const QString& blobId, const QString
 
     auto reply = m_networkAccessManager->get( networkRequest );
 
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, blobId, sasUri]()
              {
@@ -1192,7 +1209,7 @@ void RiaSumoConnector::requestParquetData( const QString& url, const QString& to
     RiaLogging::info( "Requesting download of parquet from: " + url.toStdString() );
 
     auto reply = makeDownloadRequest( url, token, RiaCloudDefines::contentTypeJson() );
-    connect( reply,
+    QObject::connect( reply,
              &QNetworkReply::finished,
              [this, reply, url]()
              {
