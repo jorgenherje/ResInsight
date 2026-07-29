@@ -37,7 +37,45 @@
 
 #include <arrow/type_fwd.h>
 
+#include <optional>
+
 CAF_PDM_SOURCE_INIT( RimSummaryEnsembleSumo, "RimSummaryEnsembleSumo" );
+
+namespace
+{
+//--------------------------------------------------------------------------------------------------
+/// Read an integer column of any width as int64. The bit width of a column is decided by the producer
+/// of the parquet file, and can not be assumed to be a specific type.
+//--------------------------------------------------------------------------------------------------
+std::optional<std::vector<int64_t>> readIntegerColumn( const std::shared_ptr<arrow::ChunkedArray>& column )
+{
+    if ( !column ) return {};
+
+    const auto typeId = column->type()->id();
+
+    if ( typeId == arrow::Type::INT8 ) return RifArrowTools::chunkedArrayToVector<arrow::Int8Array, int64_t>( column );
+    if ( typeId == arrow::Type::INT16 ) return RifArrowTools::chunkedArrayToVector<arrow::Int16Array, int64_t>( column );
+    if ( typeId == arrow::Type::INT32 ) return RifArrowTools::chunkedArrayToVector<arrow::Int32Array, int64_t>( column );
+    if ( typeId == arrow::Type::INT64 ) return RifArrowTools::chunkedArrayToVector<arrow::Int64Array, int64_t>( column );
+
+    return {};
+}
+
+//--------------------------------------------------------------------------------------------------
+/// Read a floating point column of any precision as double
+//--------------------------------------------------------------------------------------------------
+std::optional<std::vector<double>> readFloatingPointColumn( const std::shared_ptr<arrow::ChunkedArray>& column )
+{
+    if ( !column ) return {};
+
+    const auto typeId = column->type()->id();
+
+    if ( typeId == arrow::Type::FLOAT ) return RifArrowTools::chunkedArrayToVector<arrow::FloatArray, double>( column );
+    if ( typeId == arrow::Type::DOUBLE ) return RifArrowTools::chunkedArrayToVector<arrow::DoubleArray, double>( column );
+
+    return {};
+}
+} // namespace
 
 //--------------------------------------------------------------------------------------------------
 ///
@@ -356,11 +394,10 @@ void RimSummaryEnsembleSumo::distributeParametersDataToRealizations( std::shared
     std::vector<int64_t> realizations;
 
     {
-        const std::string                    columnName = "REAL";
-        std::shared_ptr<arrow::ChunkedArray> column     = table->GetColumnByName( columnName );
-        if ( column && column->type()->id() == arrow::Type::INT64 )
+        const std::string columnName = "REAL";
+        if ( auto values = readIntegerColumn( table->GetColumnByName( columnName ) ) )
         {
-            realizations = RifArrowTools::chunkedArrayToVector<arrow::Int64Array, int64_t>( column );
+            realizations = *values;
         }
         else
         {
@@ -380,20 +417,17 @@ void RimSummaryEnsembleSumo::distributeParametersDataToRealizations( std::shared
 
             if ( column )
             {
-                if ( column->type()->id() == arrow::Type::DOUBLE )
+                if ( auto values = readFloatingPointColumn( column ) )
                 {
-                    std::vector<double> values              = RifArrowTools::chunkedArrayToVector<arrow::DoubleArray, double>( column );
-                    doubleValuesForRealizations[columnName] = values;
+                    doubleValuesForRealizations[columnName] = *values;
                 }
-                else if ( column->type()->id() == arrow::Type::INT64 )
+                else if ( auto values = readIntegerColumn( column ) )
                 {
-                    std::vector<int64_t> values          = RifArrowTools::chunkedArrayToVector<arrow::Int64Array, int64_t>( column );
-                    intValuesForRealizations[columnName] = values;
+                    intValuesForRealizations[columnName] = *values;
                 }
                 else if ( column->type()->id() == arrow::Type::STRING )
                 {
-                    std::vector<std::string> values         = RifArrowTools::chunkedArrayToStringVector( column );
-                    stringValuesForRealizations[columnName] = values;
+                    stringValuesForRealizations[columnName] = RifArrowTools::chunkedArrayToStringVector( column );
                 }
             }
             else
@@ -404,14 +438,15 @@ void RimSummaryEnsembleSumo::distributeParametersDataToRealizations( std::shared
         }
     }
 
-    // find unique realizations
-    std::set<int16_t> uniqueRealizations;
-    for ( auto realizationNumber : realizations )
+    // find the row index in the table for each unique realization. The realization number can not be used as row index, as
+    // the realization numbers are not guaranteed to be continuous and starting at zero.
+    std::map<int32_t, size_t> rowIndexForRealization;
+    for ( size_t i = 0; i < realizations.size(); ++i )
     {
-        uniqueRealizations.insert( realizationNumber );
+        rowIndexForRealization.try_emplace( static_cast<int32_t>( realizations[i] ), i );
     }
 
-    auto findSummaryCase = [this]( int16_t realizationNumber ) -> RimSummaryCaseSumo*
+    auto findSummaryCase = [this]( int32_t realizationNumber ) -> RimSummaryCaseSumo*
     {
         for ( auto sumCase : allSummaryCases() )
         {
@@ -422,7 +457,7 @@ void RimSummaryEnsembleSumo::distributeParametersDataToRealizations( std::shared
         return nullptr;
     };
 
-    for ( auto realizationNumber : uniqueRealizations )
+    for ( const auto& [realizationNumber, rowIndex] : rowIndexForRealization )
     {
         if ( auto summaryCase = findSummaryCase( realizationNumber ) )
         {
@@ -436,17 +471,23 @@ void RimSummaryEnsembleSumo::distributeParametersDataToRealizations( std::shared
                 {
                     if ( auto it = doubleValuesForRealizations.find( columnName ); it != doubleValuesForRealizations.end() )
                     {
-                        double value = it->second[realizationNumber];
+                        if ( rowIndex >= it->second.size() ) continue;
+
+                        double value = it->second[rowIndex];
                         parameters->addParameter( QString::fromStdString( columnName ), value );
                     }
                     else if ( auto it = intValuesForRealizations.find( columnName ); it != intValuesForRealizations.end() )
                     {
-                        double value = it->second[realizationNumber];
+                        if ( rowIndex >= it->second.size() ) continue;
+
+                        double value = static_cast<double>( it->second[rowIndex] );
                         parameters->addParameter( QString::fromStdString( columnName ), value );
                     }
                     else if ( auto it = stringValuesForRealizations.find( columnName ); it != stringValuesForRealizations.end() )
                     {
-                        QString value = QString::fromStdString( it->second[realizationNumber] );
+                        if ( rowIndex >= it->second.size() ) continue;
+
+                        QString value = QString::fromStdString( it->second[rowIndex] );
                         parameters->addParameter( QString::fromStdString( columnName ), value );
                     }
                 }
